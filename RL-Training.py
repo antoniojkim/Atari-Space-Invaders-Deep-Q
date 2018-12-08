@@ -44,10 +44,10 @@ def train():
     def add_to_transitions(state, action, reward, done, next_state):
         transitions.append((state, action, reward, done, next_state))
         if len(transitions) > max_number_of_transitions:
-            transitions.pop(0)
+            del transitions[0]
 
 
-    model_instance_directory = "./Attempts/attempt4"
+    model_instance_directory = "./Attempts/attempt5"
     sp.call(f"mkdir -p {model_instance_directory}", shell=True)
     sp.call(f"touch {model_instance_directory}/log.csv", shell=True)
 
@@ -133,12 +133,13 @@ def train():
                 with open(f"{model_instance_directory}/log.csv", "a") as file:
                     file.write(f"{game},{iteration},{loss},{reward},{cumulative_reward},{info['ale.lives']}\n")
 
-                if loss <= min_loss:
+                if loss < min_loss:
                     model.save_weights(f"{model_instance_directory}/model_min_loss")
                     min_loss = loss
-                if cumulative_reward >= max_cumulative_reward:
+                if cumulative_reward > max_cumulative_reward:
                     model.save_weights(f"{model_instance_directory}/model_max_cumulative_reward")
                     max_cumulative_reward = cumulative_reward
+                    print("max_cumulative_reward:  ", max_cumulative_reward)
 
                 model.save_weights(f"{model_instance_directory}/model_most_recent")
 
