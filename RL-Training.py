@@ -1,3 +1,4 @@
+
     
 import subprocess as sp
 from math import inf
@@ -47,7 +48,7 @@ def train():
             del transitions[0]
 
 
-    model_instance_directory = "./Attempts/attempt5"
+    model_instance_directory = "./Attempts/attempt6"
     sp.call(f"mkdir -p {model_instance_directory}", shell=True)
     sp.call(f"touch {model_instance_directory}/log.csv", shell=True)
 
@@ -57,7 +58,7 @@ def train():
     with open(f"{model_instance_directory}/log.csv", "w") as file:
         file.write(f"game,iteration,loss,reward,cumulative_reward,lives_left\n")
 
-    model = Model().to(device)
+    model = Model("./Attempts/attempt5/model_max_cumulative_reward").to(device)
 
     min_loss = inf
     max_cumulative_reward = -inf
@@ -133,9 +134,9 @@ def train():
                 with open(f"{model_instance_directory}/log.csv", "a") as file:
                     file.write(f"{game},{iteration},{loss},{reward},{cumulative_reward},{info['ale.lives']}\n")
 
-                if loss < min_loss:
-                    model.save_weights(f"{model_instance_directory}/model_min_loss")
-                    min_loss = loss
+                # if loss < min_loss:
+                #     model.save_weights(f"{model_instance_directory}/model_min_loss")
+                #     min_loss = loss
                 if cumulative_reward > max_cumulative_reward:
                     model.save_weights(f"{model_instance_directory}/model_max_cumulative_reward")
                     max_cumulative_reward = cumulative_reward
