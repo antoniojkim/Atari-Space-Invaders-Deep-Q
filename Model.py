@@ -67,10 +67,13 @@ class Model(torch.nn.Module):
         self.fc2 = torch.nn.Linear(256, model_output_size).double()
 
         if state_dict_path is not None:
-            self.load_state_dict(torch.load(state_dict_path))
-            self.eval()
+            self.load_weights(state_dict_path)
 
     
+    def load_weights(self, state_dict_path: str):
+        self.load_state_dict(torch.load(state_dict_path))
+        self.eval()
+
     def save_weights(self, state_dict_path: str):
         torch.save(self.state_dict(), state_dict_path)
 
@@ -85,8 +88,11 @@ class Model(torch.nn.Module):
 
         return x
 
-    def predict(self, x, device):
+    def predict(self, x, device=None):
         c, h, w = transform_image_shape
+        if device is None:
+            return self.forward(torch.tensor(torch.from_numpy(np.reshape(x, (-1, c, h, w))), dtype=torch.double)).detach().numpy()
+
         return self.forward(torch.tensor(torch.from_numpy(np.reshape(x, (-1, c, h, w))), dtype=torch.double).to(device)).cpu().detach().numpy()
 
 
