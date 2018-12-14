@@ -187,10 +187,10 @@ def train():
 
 if __name__ == "__main__":
 
-    # while True:
-        # try:
-    train()
-        # except ValueError as e:
-        #     print(e)
-        #     time.sleep(5)
+    while True:
+        try:
+            train()
+        except ValueError as e:
+            print(e)
+            time.sleep(5)
             
