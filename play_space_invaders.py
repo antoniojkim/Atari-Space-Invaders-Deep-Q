@@ -8,7 +8,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print("Training on:  ", device)
 
 model = Model().to(device)
-model.load_weights("./Attempts/attempt8/model_max_cumulative_reward")
+model.load_weights("./Attempts/attempt9/model_max_cumulative_reward")
 env = gym.make("SpaceInvaders-v0")
 
 for _ in range(3):

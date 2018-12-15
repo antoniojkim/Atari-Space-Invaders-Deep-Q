@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-df = pd.read_csv("./attempt8/log.csv")
+df = pd.read_csv("./attempt9/log.csv")
 
 # print(df.groupby("winner").count())
 

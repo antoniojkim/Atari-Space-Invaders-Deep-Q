@@ -15,7 +15,7 @@ from Model import *
 import gym
 
 
-max_number_of_transitions = 5000
+max_number_of_transitions = 15000
 
     # 0 : "NOOP",
     # 1 : "FIRE",
@@ -45,10 +45,10 @@ def train():
     def add_to_transitions(state, action, reward, done, next_state):
         transitions.append((state, action, reward, done, next_state))
         if len(transitions) > max_number_of_transitions:
-            del transitions[0]
+            del transitions[0:len(transitions)-max_number_of_transitions]
 
 
-    model_instance_directory = "./Attempts/attempt9"
+    model_instance_directory = "./Attempts/attempt10"
     sp.call(f"mkdir -p {model_instance_directory}", shell=True)
     sp.call(f"touch {model_instance_directory}/log.csv", shell=True)
 
@@ -66,20 +66,19 @@ def train():
 
     h, w = transform_image_shape
 
-    if os.path.isfile(f"{model_instance_directory}/model_max_cumulative_reward"):
-        model = Model(f"{model_instance_directory}/model_max_cumulative_reward", verbose=True).to(device)
-    else:
-        print("Fresh Model")
-        model = Model(verbose=True).to(device)
+    # if os.path.isfile(f"{model_instance_directory}/model_max_cumulative_reward"):
+    #     model = Model(f"{model_instance_directory}/model_max_cumulative_reward", verbose=True).to(device)
+    # else:
+    model = Model(verbose=True).to(device)
     
     criterion = torch.nn.MSELoss()
 
-    if iteration < 20000:
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-    elif iteration < 40000:
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
-    else:
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
+    # if iteration < 20000:
+    #     optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+    # elif iteration < 40000:
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+    # else:
+    #     optimizer = torch.optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
 
     while True:
 
@@ -93,7 +92,7 @@ def train():
             # print(f"Game: {game}      Iteration: {iteration}")
             # env.render()
             transformed = transform_image(observation)
-            if len(transitions) < 64 or np.random.random() < explore_prob:
+            if np.random.random() < explore_prob:
                 action = env.action_space.sample()
             else:
                 rewards = model.predict(transformed, device)
@@ -104,21 +103,24 @@ def train():
             if int(info['ale.lives']) < num_lives_left:
                 num_lives_left -= 1
                 skip_frames = 23
+                print(f"\rReward: {cumulative_reward}".ljust(20), f"Lives: {num_lives_left}".ljust(10), end="")
+
 
             # if reward > 0 or np.random.random() > 0.25:
             if skip_frames > 0:
                 skip_frames -= 1
             else:
+                # idea: store cumulative reward and how far into game it achieved it
                 add_to_transitions(transformed, action, reward, done, transform_image(observation))
 
             cumulative_reward += reward
 
             if reward > 0:
-                print(f"\rReward: {cumulative_reward}".ljust(15), end="")
+                print(f"\rReward: {cumulative_reward}".ljust(20), f"Lives: {num_lives_left}".ljust(10), end="")
 
             batches = []
             num_transitions = len(transitions)
-            for _ in range(np.random.randint(1, 2)):
+            for _ in range(np.random.randint(1, 3)):
                 if num_transitions > 64:
                     transition_sample = sample(transitions, 32)
                     shuffle(transition_sample)
@@ -181,7 +183,7 @@ def train():
             model.save_weights(f"{model_instance_directory}/model_max_cumulative_reward")
             max_cumulative_reward = cumulative_reward
             
-        print("Reward: ", cumulative_reward, "   Max Reward: ", max_cumulative_reward)
+        print("  Max Reward: ", max_cumulative_reward)
 
 
 
