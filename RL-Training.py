@@ -1,5 +1,6 @@
 
 import sys
+import os
 import subprocess as sp
 from math import inf
 import time
@@ -47,7 +48,7 @@ def train():
             del transitions[0]
 
 
-    model_instance_directory = "./Attempts/attempt8"
+    model_instance_directory = "./Attempts/attempt9"
     sp.call(f"mkdir -p {model_instance_directory}", shell=True)
     sp.call(f"touch {model_instance_directory}/log.csv", shell=True)
 
@@ -63,29 +64,28 @@ def train():
     game = 1
     iteration = 1
 
-    c, h, w = transform_image_shape
+    h, w = transform_image_shape
+
+    if os.path.isfile(f"{model_instance_directory}/model_max_cumulative_reward"):
+        model = Model(f"{model_instance_directory}/model_max_cumulative_reward", verbose=True).to(device)
+    else:
+        print("Fresh Model")
+        model = Model(verbose=True).to(device)
     
     criterion = torch.nn.MSELoss()
 
+    if iteration < 20000:
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+    elif iteration < 40000:
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+    else:
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
+
     while True:
-
-        try:
-            model = Model(f"{model_instance_directory}/model_max_cumulative_reward").to(device)
-            # optimal_model = Model(f"{model_instance_directory}/model_max_cumulative_reward").to(device)
-        except:
-            model = Model().to(device)
-            # optimal_model = Model().to(device)
-
-        # if iteration < 20000:
-        #     optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-        # elif iteration < 40000:
-        #     optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
-        # else:
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0)
 
         cumulative_reward = 0
         num_lives_left = 3
-        skip_frames = 0
+        skip_frames = 45
         observation = env.reset()
         done = False
 
@@ -93,10 +93,10 @@ def train():
             # print(f"Game: {game}      Iteration: {iteration}")
             # env.render()
             transformed = transform_image(observation)
-            rewards = model.predict(transformed, device)
             if len(transitions) < 64 or np.random.random() < explore_prob:
                 action = env.action_space.sample()
             else:
+                rewards = model.predict(transformed, device)
                 action = np.random.choice(np.flatnonzero(rewards == rewards.max()))
 
             observation, reward, done, info = env.step(action)
@@ -113,26 +113,32 @@ def train():
 
             cumulative_reward += reward
 
+            if reward > 0:
+                print(f"\rReward: {cumulative_reward}".ljust(15), end="")
+
             batches = []
             num_transitions = len(transitions)
             for _ in range(np.random.randint(1, 2)):
-                if num_transitions >= 32:
+                if num_transitions > 64:
                     transition_sample = sample(transitions, 32)
                     shuffle(transition_sample)
 
+                    predictions = model.predict([t[4] for t in transition_sample], device)
+
                     batch_input = []
                     batch_label = []
-                    for state, action, reward, t_done, next_state in transition_sample:
+                    for t, p in zip(transition_sample, predictions):
+                        state, action, reward, t_done, next_state = t
                         batch_input.append(state)
                         label = np.empty(model_output_size)
                         if t_done:
                             label.fill(reward)
                         else:
-                            label.fill(reward+gamma*model.predict(next_state, device).max())
+                            label.fill(reward+gamma*p.max())
 
                         batch_label.append(label)
 
-                    batches.append((np.reshape(np.array(batch_input), (-1, c, h, w)), np.array(batch_label)))
+                    batches.append((np.reshape(np.array(batch_input), (-1, 1, h, w)), np.array(batch_label)))
 
                     num_transitions -= 32
 
@@ -175,7 +181,7 @@ def train():
             model.save_weights(f"{model_instance_directory}/model_max_cumulative_reward")
             max_cumulative_reward = cumulative_reward
             
-        print("Reward: ", cumulative_reward, "   Max Reward: ", max_cumulative_reward, "  ", done)
+        print("Reward: ", cumulative_reward, "   Max Reward: ", max_cumulative_reward)
 
 
 
