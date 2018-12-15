@@ -71,17 +71,17 @@ def train():
 
         try:
             model = Model(f"{model_instance_directory}/model_max_cumulative_reward").to(device)
-            optimal_model = Model(f"{model_instance_directory}/model_max_cumulative_reward").to(device)
+            # optimal_model = Model(f"{model_instance_directory}/model_max_cumulative_reward").to(device)
         except:
             model = Model().to(device)
-            optimal_model = Model().to(device)
+            # optimal_model = Model().to(device)
 
-        if iteration < 20000:
-            optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-        elif iteration < 40000:
-            optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
-        else:
-            optimizer = torch.optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
+        # if iteration < 20000:
+        #     optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+        # elif iteration < 40000:
+        #     optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+        # else:
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0)
 
         cumulative_reward = 0
         num_lives_left = 3
@@ -93,7 +93,7 @@ def train():
             # print(f"Game: {game}      Iteration: {iteration}")
             # env.render()
             transformed = transform_image(observation)
-            rewards = optimal_model.predict(transformed, device)
+            rewards = model.predict(transformed, device)
             if len(transitions) < 64 or np.random.random() < explore_prob:
                 action = env.action_space.sample()
             else:
