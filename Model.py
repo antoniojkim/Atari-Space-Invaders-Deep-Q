@@ -1,7 +1,10 @@
 
+import time
+
 import torch
 import torch.nn.functional as F
 import numpy as np
+from numba import jit
 import random
 
 import matplotlib.pyplot as plt
@@ -47,20 +50,22 @@ class Model(torch.nn.Module):
         if verbose: print("input:      ", input_shape)
         conv1_kernel = 8
         conv1_stride = 4
+        conv1_out_channels = 32
 
-        self.conv1 = torch.nn.Conv2d(in_channels=3, out_channels=16, kernel_size=conv1_kernel, stride=conv1_stride).double()
+        self.conv1 = torch.nn.Conv2d(in_channels=3, out_channels=conv1_out_channels, kernel_size=conv1_kernel, stride=conv1_stride).double()
 
         conv1_output_shape = conv_out_shape(input_shape, conv1_kernel, conv1_stride)
         if verbose: print("conv1 out:  ", conv1_output_shape)
         conv2_kernel = 4
         conv2_stride = 2
+        conv2_out_channels = 64
 
-        self.conv2 = torch.nn.Conv2d(in_channels=16, out_channels=32, kernel_size=conv2_kernel, stride=conv2_stride).double()
+        self.conv2 = torch.nn.Conv2d(in_channels=conv1_out_channels, out_channels=conv2_out_channels, kernel_size=conv2_kernel, stride=conv2_stride).double()
 
         c, h, w = conv_out_shape(conv1_output_shape, conv2_kernel, conv2_stride)
         if verbose: print("conv2 out:  ", (c, h, w))
 
-        self.view_size = h*w*32
+        self.view_size = h*w*conv2_out_channels
         if verbose: print("view size:  ", self.view_size)
         
         self.fc1 = torch.nn.Linear(self.view_size, 256).double()
@@ -96,7 +101,20 @@ class Model(torch.nn.Module):
         return self.forward(torch.tensor(torch.from_numpy(np.reshape(x, (-1, c, h, w))), dtype=torch.double).to(device)).cpu().detach().numpy()
 
 
+current_time_milli = lambda: int(round(time.time() * 1000))
 
 if __name__ == "__main__":
 
     model = Model(verbose=True)
+
+    # start = current_time_milli()
+
+    # # 3.876
+    # # 4.101
+
+    # for _ in range(10000):
+    #     transform_image(np.random.randint(256, size=(210, 160, 3)))
+
+    # end = current_time_milli()
+
+    # print((end-start)/1000.0)

@@ -1,5 +1,5 @@
 
-    
+import sys
 import subprocess as sp
 from math import inf
 import time
@@ -14,8 +14,7 @@ from Model import *
 import gym
 
 
-max_number_of_transitions = 3500
-max_number_of_transitions_w_rewards = 1500
+max_number_of_transitions = 5000
 
     # 0 : "NOOP",
     # 1 : "FIRE",
@@ -41,20 +40,14 @@ def train():
     env = gym.make("SpaceInvaders-v0")
 
     transitions = []
-    transitions_w_rewards = []
 
     def add_to_transitions(state, action, reward, done, next_state):
-        if reward > 0:
-            transitions_w_rewards.append((state, action, reward, done, next_state))
-            if len(transitions_w_rewards) > max_number_of_transitions_w_rewards:
-                del transitions_w_rewards[0]
-        else:
-            transitions.append((state, action, reward, done, next_state))
-            if len(transitions) > max_number_of_transitions:
-                del transitions[0]
+        transitions.append((state, action, reward, done, next_state))
+        if len(transitions) > max_number_of_transitions:
+            del transitions[0]
 
 
-    model_instance_directory = "./Attempts/attempt7"
+    model_instance_directory = "./Attempts/attempt8"
     sp.call(f"mkdir -p {model_instance_directory}", shell=True)
     sp.call(f"touch {model_instance_directory}/log.csv", shell=True)
 
@@ -65,7 +58,7 @@ def train():
         file.write(f"game,iteration,loss,reward,cumulative_reward,done,lives_left\n")
 
     max_cumulative_reward = 0
-    explore_prob = 0.025
+    explore_prob = 0.05
     gamma = 0.9
     game = 1
     iteration = 1
@@ -74,26 +67,34 @@ def train():
     
     criterion = torch.nn.MSELoss()
 
-    try:
-        model = Model(f"{model_instance_directory}/model_max_cumulative_reward").to(device)
-    except:
-        model = Model().to(device)
-
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
-
     while True:
+
+        try:
+            model = Model(f"{model_instance_directory}/model_max_cumulative_reward").to(device)
+            optimal_model = Model(f"{model_instance_directory}/model_max_cumulative_reward").to(device)
+        except:
+            model = Model().to(device)
+            optimal_model = Model().to(device)
+
+        if iteration < 20000:
+            optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+        elif iteration < 40000:
+            optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+        else:
+            optimizer = torch.optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
 
         cumulative_reward = 0
         num_lives_left = 3
         skip_frames = 0
         observation = env.reset()
         done = False
+
         while not done:
             # print(f"Game: {game}      Iteration: {iteration}")
             # env.render()
             transformed = transform_image(observation)
-            rewards = model.predict(transformed, device)
-            if np.random.random() < explore_prob:
+            rewards = optimal_model.predict(transformed, device)
+            if len(transitions) < 64 or np.random.random() < explore_prob:
                 action = env.action_space.sample()
             else:
                 action = np.random.choice(np.flatnonzero(rewards == rewards.max()))
@@ -104,9 +105,6 @@ def train():
                 num_lives_left -= 1
                 skip_frames = 23
 
-            if done and num_lives_left > 0:
-                raise ValueError("Inconsistent step error")
-
             # if reward > 0 or np.random.random() > 0.25:
             if skip_frames > 0:
                 skip_frames -= 1
@@ -116,11 +114,10 @@ def train():
             cumulative_reward += reward
 
             batches = []
-            num_transitions = len(transitions)+len(transitions_w_rewards)
+            num_transitions = len(transitions)
             for _ in range(np.random.randint(1, 2)):
                 if num_transitions >= 32:
-                    transition_sample = sample(transitions, 32-min(len(transitions_w_rewards), 8))+\
-                                        sample(transitions_w_rewards, min(len(transitions_w_rewards), 8))
+                    transition_sample = sample(transitions, 32)
                     shuffle(transition_sample)
 
                     batch_input = []
@@ -128,7 +125,7 @@ def train():
                     for state, action, reward, t_done, next_state in transition_sample:
                         batch_input.append(state)
                         label = np.empty(model_output_size)
-                        if done:
+                        if t_done:
                             label.fill(reward)
                         else:
                             label.fill(reward+gamma*model.predict(next_state, device).max())
@@ -156,15 +153,8 @@ def train():
                 loss = running_loss / len(batches)
 
                 with open(f"{model_instance_directory}/log.csv", "a") as file:
-                    file.write(f"{game},{iteration},{loss},{reward},{cumulative_reward},{done},{num_lives_left}\n")
+                    file.write(f"{game},{iteration},{loss},{reward},{cumulative_reward},{num_lives_left}\n")
 
-                if cumulative_reward > max_cumulative_reward:
-                    model.save_weights(f"{model_instance_directory}/model_max_cumulative_reward")
-                    max_cumulative_reward = cumulative_reward
-
-            else:
-                with open(f"{model_instance_directory}/log.csv", "a") as file:
-                    file.write(f"{game},{iteration},,{reward},{cumulative_reward},{done},{num_lives_left}\n")
 
 
                 # print(f"Loss:               {loss}")
@@ -180,6 +170,11 @@ def train():
             iteration += 1
         
         game += 1
+        
+        if cumulative_reward > max_cumulative_reward:
+            model.save_weights(f"{model_instance_directory}/model_max_cumulative_reward")
+            max_cumulative_reward = cumulative_reward
+            
         print("Reward: ", cumulative_reward, "   Max Reward: ", max_cumulative_reward, "  ", done)
 
 
