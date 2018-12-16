@@ -15,7 +15,7 @@ from Model import *
 import gym
 
 
-max_number_of_transitions = 15000
+max_memory = 15000
 
     # 0 : "NOOP",
     # 1 : "FIRE",
@@ -38,14 +38,25 @@ max_number_of_transitions = 15000
 
 
 def train():
+
+    max_cumulative_reward = 0
+    explore_prob = 0.05
+    gamma = 0.9
+    game = 1
+    iteration = 1
+
     env = gym.make("SpaceInvaders-v0")
 
-    transitions = []
+    long_term_memory = []
 
-    def add_to_transitions(state, action, reward, done, next_state):
-        transitions.append((state, action, reward, done, next_state))
-        if len(transitions) > max_number_of_transitions:
-            del transitions[0:len(transitions)-max_number_of_transitions]
+    def save_short_term(cumulative_reward, short_term_memory):
+        if cumulative_reward > max_cumulative_reward/2:
+            model.save_weights(f"{model_instance_directory}/model_average")
+            print("✓")
+
+            long_term_memory.extend(short_term_memory)
+            if len(long_term_memory) > max_memory:
+                del long_term_memory[0:len(long_term_memory)-max_memory]
 
 
     model_instance_directory = "./Attempts/attempt10"
@@ -57,12 +68,6 @@ def train():
 
     with open(f"{model_instance_directory}/log.csv", "w") as file:
         file.write(f"game,iteration,loss,reward,cumulative_reward,done,lives_left\n")
-
-    max_cumulative_reward = 0
-    explore_prob = 0.05
-    gamma = 0.9
-    game = 1
-    iteration = 1
 
     h, w = transform_image_shape
 
@@ -83,6 +88,8 @@ def train():
     while True:
 
         cumulative_reward = 0
+        short_term_memory = []
+
         num_lives_left = 3
         skip_frames = 45
         observation = env.reset()
@@ -103,7 +110,7 @@ def train():
             if int(info['ale.lives']) < num_lives_left:
                 num_lives_left -= 1
                 skip_frames = 23
-                print(f"\rReward: {cumulative_reward}".ljust(20), f"Lives: {num_lives_left}".ljust(10), end="")
+                print(f"\rReward: {int(cumulative_reward)}".ljust(17), f"Lives: {num_lives_left}".ljust(10), end="")
 
 
             # if reward > 0 or np.random.random() > 0.25:
@@ -111,25 +118,25 @@ def train():
                 skip_frames -= 1
             else:
                 # idea: store cumulative reward and how far into game it achieved it
-                add_to_transitions(transformed, action, reward, done, transform_image(observation))
+                short_term_memory.append((transformed, action, reward, done, transform_image(observation)))
 
             cumulative_reward += reward
 
             if reward > 0:
-                print(f"\rReward: {cumulative_reward}".ljust(20), f"Lives: {num_lives_left}".ljust(10), end="")
+                print(f"\rReward: {int(cumulative_reward)}".ljust(17), f"Lives: {num_lives_left}".ljust(10), end="")
 
             batches = []
-            num_transitions = len(transitions)
+            num_transitions = len(long_term_memory)
             for _ in range(np.random.randint(1, 3)):
                 if num_transitions > 64:
-                    transition_sample = sample(transitions, 32)
-                    shuffle(transition_sample)
+                    transitions = sample(long_term_memory, 32)
+                    shuffle(transitions)
 
-                    predictions = model.predict([t[4] for t in transition_sample], device)
+                    predictions = model.predict([t[4] for t in transitions], device)
 
                     batch_input = []
                     batch_label = []
-                    for t, p in zip(transition_sample, predictions):
+                    for t, p in zip(transitions, predictions):
                         state, action, reward, t_done, next_state = t
                         batch_input.append(state)
                         label = np.empty(model_output_size)
@@ -159,9 +166,11 @@ def train():
 
             if len(batches) > 0:
                 loss = running_loss / len(batches)
+            else:
+                loss = ""
 
-                with open(f"{model_instance_directory}/log.csv", "a") as file:
-                    file.write(f"{game},{iteration},{loss},{reward},{cumulative_reward},{num_lives_left}\n")
+            with open(f"{model_instance_directory}/log.csv", "a") as file:
+                file.write(f"{game},{iteration},{loss},{reward},{cumulative_reward},{num_lives_left}\n")
 
 
 
@@ -183,7 +192,9 @@ def train():
             model.save_weights(f"{model_instance_directory}/model_max_cumulative_reward")
             max_cumulative_reward = cumulative_reward
             
-        print("  Max Reward: ", max_cumulative_reward)
+        print("  Max Reward: ", str(int(max_cumulative_reward)).ljust(7), end="")
+
+        save_short_term(cumulative_reward, short_term_memory)
 
 
 
