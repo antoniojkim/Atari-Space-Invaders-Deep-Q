@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-df = pd.read_csv("./attempt9/log.csv")
+df = pd.read_csv("./attempt2/mean_rewards.csv")
 
 # print(df.groupby("winner").count())
 
@@ -18,8 +18,8 @@ print(df["cumulative_reward"].idxmax())
 # df[["iteration", "duration"]].plot(x="iteration")
 # for i, length in enumerate(lengths):
 # df = df[df["iteration"] > 500]
-plt.plot(df["iteration"], df[f"cumulative_reward"], c=f"C0")
-plt.plot(df["iteration"], np.polyval(np.polyfit(df["iteration"], df[f"cumulative_reward"], 1), df["iteration"]), c=f"C1", label=f"cumulative_reward")
+plt.plot(df["episode"], df[f"cumulative_reward"], c=f"C0")
+plt.plot(df["episode"], np.polyval(np.polyfit(df["episode"], df[f"cumulative_reward"], 1), df["episode"]), c=f"C1", label=f"cumulative_reward")
 
     # plt.plot(df["iteration"], df[f"accuracy__{length}"], c=f"C{i}", label=f"accuracy__{length}")
     # plt.plot(df["iteration"], np.polyval(np.polyfit(df["iteration"], df[f"accuracy__{length}"], 1), df["iteration"]))
