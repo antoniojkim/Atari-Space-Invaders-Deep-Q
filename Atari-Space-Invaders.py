@@ -84,6 +84,7 @@ def train(num_episodes, explore_prob, average=100, **kwargs):
                 prev_state = current_state
                 current_state = []
                 current_reward = 0
+                skip_frames = 3
 
                 # start = current_time_milli()
                 # loss = trainer.experience_replay()
@@ -164,7 +165,7 @@ if __name__ == "__main__":
         "weight_decay": 0.0001,
         "explore_prob": 0.15,
         "discount": 0.95,
-        "max_memory_size": 150,
+        "max_memory_size": 300,
         "batch_size": 50,
         "mini_batch_size": 32,
         "num_episodes": 10000

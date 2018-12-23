@@ -9,6 +9,7 @@ import random
 
 import matplotlib.pyplot as plt
 
+import gym
 from Trainer import *
 
 # @jit(cache=True)
@@ -19,7 +20,7 @@ def rgb2gray(rgb):
 def transform_image(image):
 
     # image = image[0:-15, 0:-10, :]
-    image = image[23:-15, 10:-10, :]
+    image = image[27:-19, 30:-30, :]
     # image = np.rollaxis(image, 2, 0)
 
     image = rgb2gray(image)
@@ -104,12 +105,21 @@ if __name__ == "__main__":
     # 13.248, 13.688
     
     # start = current_time_milli()
+    env = gym.make("SpaceInvaders-v0")
+    observation = env.reset()
+    for i in range(200):
+        observation, reward, done, info = env.step(4)
 
-    transformed = transform_image(np.random.randint(2, size=(210, 160, 3)))
+    model = SpaceInvadersModel(verbose=True)
+
+    transformed = transform_image(observation)
     # for i in range(100):
     #     compress(transformed)
+    print(transformed.shape)
     print(transformed.size)
     print(transformed.size * transformed.itemsize)
+
+    show_image(transformed)
 
     # end = current_time_milli()
 
